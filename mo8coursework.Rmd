@@ -1,0 +1,98 @@
+---
+output: pdf_document
+---
+    Course Project WriteUp
+Practical Machine Learning/Prediction Assignment
+
+    Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+    Expectation of the project
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
+
+  1. Your submission should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
+  2. You should also apply your machine learning algorithm to the 20 test cases available in the test data above. Please submit your predictions in appropriate format to the programming assignment for automated grading. See the programming assignment for additional details. 
+
+Uploading Packages needed
+```{r}
+library('caret')
+library('randomForest')
+library('rpart')
+library('rpart.plot')
+library('e1071')
+set.seed(12345)
+```
+
+Loading & Cleansing of Datasets
+```{r}
+setwd('c:/lib/mod8') #set working directory
+train<- read.csv("./pml-training.csv", na.strings=c("NA","#DIV/0!", "")) #loading training data
+test<- read.csv('./pml-testing.csv', na.strings=c("NA","#DIV/0!", ""))  #loading testing data
+
+train<-train[,colSums(is.na(train)) == 0] #removing empty columns
+test <-test[,colSums(is.na(test)) == 0] #removing empty columns
+
+train<-train[,-c(1:7)] #removing irrelevant data
+test<-test[,-c(1:7)] #removing irrelevant data
+
+#outlook of new dataset
+dim(train)
+dim(test)
+```
+The training dataset has 19622 observations with 53 variables while the testing dataset has 20observations with 53 varaibles. 
+
+To perform the the cross-validation, training dataset  is broken down into two portions - subtrain and subtest at 75% & 25% respectively.
+```{r}
+subsamples <- createDataPartition(y=train$classe, p=0.75, list=FALSE)
+subtrain <- train[subsamples, ] 
+subtest <- train[-subsamples, ]
+
+plot(subtrain$classe, col="orange", main="Bar Chart of Levels of the Variable Classe within the subtrain dataset", xlab="Classe Levels", ylab="Frequency")
+```
+
+We can infer from the bar chart above that Level A is the more frequent (>4000) while Level D has the least of about 2500.
+
+Decision Tree as our first prediction model
+```{r}
+mode1 <- rpart(classe ~ ., data=subtrain, method="class")
+
+rpart.plot(mode1, main="Classification Tree", extra=102, under=TRUE, faclen=0)
+
+```
+Next to test the results with subtest dataset.
+```{r}
+predict1 <- predict(mode1, subtest, type = "class")
+confusionMatrix(predict1, subtest$classe)
+```
+
+Random Forest as our second prediction model
+```{r}
+mode2 <- randomForest(classe ~. , data=subtrain, method="class")
+
+predict2 <- predict(mode2, subtest, type = "class")
+
+confusionMatrix(predict2, subtest$classe)
+```
+
+Conclusion
+Two models are used for this assignment - (1) Decision Tree and (2) Random Forest.
+It is shown that the random forest model has a higher accuracy of 0.9949(95% CI:(0.9925, 0.9967))as compared to decision tree's 0.7229 (95% CI: (0.7101, 0.7354))
+With an expected error of about only 0.05%, we do not expect any of the test samples to be missclassified.
+
+
+For project submission
+```{r}
+predictlast <- predict(mode2, test, type="class")
+predictlast
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(predictlast)
+
+```
